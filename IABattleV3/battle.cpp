@@ -1,12 +1,4 @@
-#include "battle.hpp"
-#include "Army.hpp"
-#include "AI.hpp"
-
-#include <vector>
-#include <algorithm>
-#include <memory>
-#include <stdexcept>
-#include <iostream>
+#include "stdafx.h"
 
 //Struct used to manipulate a unit together with its army and its opponents
 struct UnitChoice {
@@ -55,7 +47,7 @@ void fight(const Army& a, const Army& b, int& scoreA, int& scoreB, bool log)
             try {
                 if(log)std::cout<<"Unit#"<<it->unitId<<" (Army "<<((it->army)==&A?"A":"B")<<") : ";
                 Unit& unit = it->army->getUnit(it->unitId);
-                std::shared_ptr<Action> action = ai(unit, *(it->army), *(it->opponents));
+                std::unique_ptr<Action> action = ai(unit, *(it->army), *(it->opponents));
                 action->execute(log);
                 it->opponents->purge();
             } catch(std::invalid_argument e) {

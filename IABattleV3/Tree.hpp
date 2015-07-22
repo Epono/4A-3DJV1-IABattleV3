@@ -3,7 +3,6 @@
 
 #include <sstream>
 
-#include "Unit.hpp"
 #include "Army.hpp"
 #include "Extractor.hpp"
 #include "Comparator.hpp"
@@ -16,10 +15,6 @@
 class Node
 {
 protected:
-	Unit* unit_;
-	Army* ally_;
-	Army* opponent_;
-
 	Node* left_;
 	Node* right_;
 
@@ -28,281 +23,100 @@ protected:
 
 	Comparator* comp_;
 public:
-	Node(Unit* unit,
-		 Army* ally,
-		 Army* opponent,
-		 Node* left,
+	Node(){}
+	Node(Node* left,
 		 Node* right,
 		 Extractor< float >* leftValue,
 		 Extractor< float >* rightValue,
 		 Comparator* comp)
-		: unit_(unit), ally_(ally), opponent_(opponent)
-		, left_(left), right_(right), leftValue_(leftValue)
+		: left_(left), right_(right), leftValue_(leftValue)
 		, rightValue_(rightValue), comp_(comp) {}
-	virtual Action* getAction() = 0;
+
+	virtual std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent) = 0;
 };
 
 class DecisionNode : public Node
 { 
 public:
-	DecisionNode(Unit* unit, 
-				 Army* ally, 
-				 Army* opponent, 
-				 Node* left, 
+	DecisionNode(Node* left, 
 				 Node* right, 
 				 Extractor< float >* leftValue, 
 				 Extractor< float >* rightValue, 
 				 Comparator* comp)
-		: Node(unit, ally, opponent, left, right, leftValue, rightValue, comp) {}
-	Action* getAction()
+		: Node(left, right, leftValue, rightValue, comp) {}
+
+	std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent)
 	{
-		if (comp_->compare(leftValue_->get(*unit_, *ally_, *opponent_), rightValue_->get(*unit_, *ally_, *opponent_)))
-			return left_->getAction();
+		if (comp_->compare(leftValue_->get(unit, ally, opponent), rightValue_->get(unit, ally, opponent)))
+			return left_->getAction(unit, ally, opponent);
 		else
-			return right_->getAction();
+			return right_->getAction(unit, ally, opponent);
 	}
 };
 
 class ActionNode : public Node
 {
-private:
-	Action* action_;
 public:
-	Action* getAction()	{ return action_; }
+	ActionNode(){}
+
+	virtual std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent) = 0;
+};
+
+class EmptyActionNode : public ActionNode
+{
+public:
+	EmptyActionNode(){}
+
+	std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent)
+	{ return std::unique_ptr<Action>(new EmptyAction(unit)); }
+}; 
+
+class EscapeActionNode : public ActionNode
+{
+public:
+	EscapeActionNode(Extractor< Point& >* ep) : ep_(ep){}
+
+	std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent)
+	{ return std::unique_ptr<Action>(new EscapeAction(unit, ep_->get(unit, ally, opponent))); }
+private:
+	Extractor< Point& >* ep_;
+};
+
+class MoveActionNode : public ActionNode
+{
+public:
+	MoveActionNode(Extractor< Point& >* ep) : ep_(ep){}
+
+	std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent)
+	{ return std::unique_ptr<Action>(new MoveAction(unit, ep_->get(unit, ally, opponent))); }
+private:
+	Extractor< Point& >* ep_;
+};
+
+class ShotActionNode : public ActionNode
+{
+public:
+	ShotActionNode(Extractor< Unit& >* eu) : eu_(eu){}
+
+	std::unique_ptr<Action> getAction(Unit& unit, Army& ally, Army& opponent)
+	{ return std::unique_ptr<Action>(new ShotAction(unit, eu_->get(unit, ally, opponent))); }
+private:
+	Extractor< Unit& >* eu_;
 };
 
 class TreeFactory
 {
 private:
-	static Extractor< float >* buildValueExtractor(std::stringstream& code)
-	{
-		char c;
-		code >> c;
-		if (c == '[')
-		{
-			std::string s = "";
-			code >> c;
-			while (c != ']')
-			{
-				s += c;
-				code >> c;
-			}
-			return new ExtractorValue(atof(s.c_str()));
-		}
-	}
+	static Extractor< float >* buildValueExtractor(std::stringstream&);
+	static Extractor< Army& >* buildArmyExtractor(std::stringstream&);
+	static Extractor< Point& >* buildPointExtractor(std::stringstream&);
+	static Extractor< Unit& >* buildUnitExtractor(std::stringstream&);
+	static Extractor< float >* buildFloatExtractor(std::stringstream&);
 
-	static Extractor< Army& >* buildArmyExtractor(std::stringstream& code)
-	{
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case 'A':
-			return new ExtractorA();
-		case 'O':
-			return new ExtractorO();
-			/*case 'N':
-			code >> c;
-			if (c == 'L')
-			{
-			code >> c;
-			if (c == 'D')
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			Extractor<Point&>* ep = buildPointExtractor(code);
-			return new ExtractorNLD(ev, ea, ep);
-			}
-			else
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			return new ExtractorNLX(ev, ea, c);
-			}
-			}
-			else
-			{
-			code >> c;
-			if (c == 'D')
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			Extractor<Point&>* ep = buildPointExtractor(code);
-			return new ExtractorNHD(ev, ea, ep);
-			}
-			else
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			return new ExtractorNHX(ei, ea, static_cast<int>(c));
-			}
-			}
-			case 'T':
-			code >> c;
-			if (c == 'L')
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			return new ExtractorTLX(ev, ea, static_cast<int>(c));
-			}
-			else
-			{
-			Extractor<float> * ev = buildValueExtractor(code);
-			Extractor<Army&>* ea = buildArmyExtractor(code);
-			return new ExtractorTHX(ei, ea, static_cast<int>(c));
-			}*/
-		}
-	}
-
-	static Extractor<Point&>* buildPointExtractor(std::stringstream& code)
-	{
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case 'B':
-			return new ExtractorB(buildArmyExtractor(code));
-		case 'P':
-			return new ExtractorP(buildUnitExtractor(code));
-		}
-	}
-
-	static Extractor< Unit& >* buildUnitExtractor(std::stringstream& code)
-	{
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case 'U':
-			return new ExtractorU();
-		case 'L':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractorLX(buildArmyExtractor(code), static_cast<int>(c));
-			else if (c == 'D')
-			{
-				Extractor<Army&> * ea = buildArmyExtractor(code);
-				Extractor<Point&> * ep = buildPointExtractor(code);
-
-				return new ExtractorLD(ea, ep);
-			}
-		case 'H':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractorHX(buildArmyExtractor(code), static_cast<int>(c));
-			else if (c == 'D')
-			{
-				Extractor<Army&> * ea = buildArmyExtractor(code);
-				Extractor<Point&> * ep = buildPointExtractor(code);
-
-				return new ExtractorHD(ea, ep);
-			}
-		}
-	}
-
-	static Extractor<float>* buildFloatExtractor(std::stringstream& code)
-	{
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case 'C':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractorCX(buildUnitExtractor(code), static_cast<int>(c));
-		case 'D':
-			Extractor< Unit& >* eu = buildUnitExtractor(code);
-			Extractor< Point& >* ep = buildPointExtractor(code);
-			return new ExtractorD(eu, ep);
-		case 'M':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractorMX(buildArmyExtractor(code), static_cast<int>(c));
-			else if (c == 'D')
-			{
-				Extractor<Army&> * ea = buildArmyExtractor(code);
-				Extractor<Point&> * ep = buildPointExtractor(code);
-
-				return new ExtractorMD(ea, ep);
-			}
-		case 'm':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractormX(buildArmyExtractor(code), static_cast<int>(c));
-			else if (c == 'D')
-			{
-				Extractor<Army&> * ea = buildArmyExtractor(code);
-				Extractor<Point&> * ep = buildPointExtractor(code);
-
-				return new ExtractormD(ea, ep);
-			}
-		case 'a':
-			code >> c;
-			if (c >= '0' && c <= '6')
-				return new ExtractoraX(buildArmyExtractor(code), static_cast<int>(c));
-			else if (c == 'D')
-			{
-				Extractor<Army&> * ea = buildArmyExtractor(code);
-				Extractor<Point&> * ep = buildPointExtractor(code);
-
-				return new ExtractoraD(ea, ep);
-			}
-		}
-	}
-
-	static DecisionNode* buildInternalNode(std::stringstream& code, Unit* u, Army* a, Army* o)
-	{
-		Extractor<float>* leftSide = buildFloatExtractor(code);
-		Comparator * cmp;
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case '<':
-			cmp = new LessComparator();
-		case '>':
-			cmp = new MoreComparator();
-		}
-		Extractor<float> * rightSide = buildFloatExtractor(code);
-		Node* l_son = buildTree(code, u, a, o);
-		Node* r_son = buildTree(code, u, a, o);
-		return new DecisionNode(u, a, o, l_son, r_son, leftSide, rightSide, cmp);
-	}
-
-	static ActionNode* buildActionNode(std::stringstream& code, Unit* u, Army* a, Army* o)
-	{
-		Action * action;
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case 'M':
-			Extractor<Point&> * ep = buildPointExtractor(code);
-			action = new MoveAction(*u, ep->get(*u, *a, *o));
-		case 'E':
-			Extractor<Point&> * ep = buildPointExtractor(code);
-			action = new EscapeAction(*u, ep->get(*u, *a, *o));
-		case 'A':
-			Extractor<Unit&> * eu = buildUnitExtractor(code);
-			action = new ShotAction(*u, eu->get(*u, *a, *o));
-		case 'N':
-			action = new EmptyAction(*u);
-		}
-	}
-
+	static DecisionNode* buildInternalNode(std::stringstream&);
+	static ActionNode* buildActionNode(std::stringstream&);
 public:
-	static Node* buildTree(std::stringstream& code, Unit* u, Army* a, Army* o)
-	{
-		char c;
-		code >> c;
-		switch (c)
-		{
-		case '?':
-			return buildInternalNode(code, u, a, o);
-		case '!':
-			return buildActionNode(code, u, a, o);
-		}
-	}
+	static Node* buildTree(std::stringstream&);
 };
 
 

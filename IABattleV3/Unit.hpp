@@ -1,5 +1,6 @@
-#ifndef _UNIT_HPP_
-#define _UNIT_HPP_
+#ifndef __UNIT_HPP__
+#define __UNIT_HPP__
+
 #include <memory>
 #include <vector>
 #include <string>
@@ -19,7 +20,7 @@
 #include "ArmorCapacity.hpp"
 #include "Point.hpp"
 
-
+class Node;
 
 //Class representing a unit, i.e. element of an army
 class Unit {
@@ -42,6 +43,7 @@ private:
     //position of the unit
     Point position_;
 
+	Node* iaTree_;
 
     //Method in charge of the initialization of id, position(random), and capacities
     void init_();
@@ -64,7 +66,7 @@ public:
     Unit& operator=(Unit unit);
 
     //Swap the content of the parameter and the current object
-    void swap(Unit& unit);
+	void swap(Unit& unit);
 
     //Provide the unique identifier of the unit
     int getId()const
@@ -77,6 +79,8 @@ public:
     {
         return iaCode_;
     }
+
+	Node* getIAtree(){ return iaTree_; }
 
     //Provide the speed capacity of the unit
     SpeedCapacity& getSpeed()
@@ -184,7 +188,15 @@ public:
     //Load a unit from the input stream
     static Unit load(std::istream& in);
 
+	//Generate a random IACode for a tree that have a depth in parameter 
+	static std::string generateRandomIACode(int);
 
+private:
+	static std::string generateArmyCode();
+	static std::string generatePointCode();
+	static std::string generateUnitCode();
+	static std::string generateFloatCode();
+	static std::string generateActionCode();
 };
 
 //Shift operator overloading, printing the unit in the output stream.

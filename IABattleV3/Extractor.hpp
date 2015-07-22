@@ -1,16 +1,14 @@
 #ifndef __EXTRACTOR_HPP__
 #define __EXTRACTOR_HPP__
 
-#include <functional>
-#include "Unit.hpp"
-#include "Army.hpp"
-#include "Point.hpp"
+class Unit;
+class Army;
 
 template<typename T>
 class Extractor
 {
 public:
-	virtual T get(Unit&, Army&, Army&) const = 0;
+	virtual T get(Unit& u, Army& a, Army& o) const = 0;
 };
 
 /* Constant Value Extractor */
@@ -268,7 +266,7 @@ public:
 	ExtractorB(Extractor< Army& >* ea) : _ea(ea) {}
 	Point& get(Unit& u, Army& a, Army& o) const
 	{
-		float x, y;
+		float x = 0.f, y = 0.f;
 		std::vector< std::shared_ptr< Unit > > army = _ea->get(u, a, o).getUnitsList();
 
 		for (auto& it : army)

@@ -1,8 +1,4 @@
-#include <cstdlib>
-#include <algorithm>
-#include "Unit.hpp"
-#include <memory>
-#include <numeric>
+#include "stdafx.h"
 
 //static counter used for unique id creation
 int Unit::idCount_=0;
@@ -27,10 +23,8 @@ void Unit::init_()
 Unit::Unit(int globalLevel)
 {
     init_();
-    if(std::rand()%2)this->iaCode_ = "L";
-    else this->iaCode_ = "H";
-    if(rand()%8==0)this->iaCode_ += "D";
-    else this->iaCode_ += '0'+ (char)(rand()%7);
+	this->iaCode_ = Unit::generateRandomIACode(3);
+	this->iaTree_ = TreeFactory::buildTree(std::stringstream(this->iaCode_));
     while(globalLevel--) {
         this->capacities_[std::rand()%this->capacities_.size()]->upgrade();
     }
@@ -42,6 +36,7 @@ Unit::Unit(std::string iaCode, int speedLevel, int lifeLevel, int armorLevel, in
 {
     init_();
     this->iaCode_ = iaCode;
+	this->iaTree_ = TreeFactory::buildTree(std::stringstream(this->iaCode_));
     getSpeed().upgrade(speedLevel);
     getLife().upgrade(lifeLevel);
     getArmor().upgrade(armorLevel);
@@ -56,7 +51,8 @@ Unit::Unit(std::string iaCode, int speedLevel, int lifeLevel, int armorLevel, in
 Unit::Unit(std::string iaCode, std::vector<int>& levels)
 {
     init_();
-    this->iaCode_ = iaCode;
+	this->iaCode_ = iaCode;
+	this->iaTree_ = TreeFactory::buildTree(std::stringstream(this->iaCode_));
     for(unsigned int i = 0; i < levels.size() && i < capacities_.size(); ++i) {
         capacities_[i]->upgrade(levels[i]);
     }
@@ -68,6 +64,7 @@ Unit::Unit(const Unit& unit)
 {
     init_();
     this->iaCode_ = unit.iaCode_;
+	this->iaTree_ = TreeFactory::buildTree(std::stringstream(this->iaCode_));
     for(unsigned int i = 0;  i < capacities_.size(); ++i) {
         capacities_[i]->upgrade(unit.capacities_[i]->getLevel());
     }
@@ -81,6 +78,7 @@ void Unit::swap(Unit& unit)
     std::swap(iaCode_, unit.iaCode_);
     std::swap(position_, unit.position_);
     std::swap(id_, unit.id_);
+	std::swap(iaTree_, unit.iaTree_);
 }
 
 
@@ -200,4 +198,131 @@ Unit Unit::load(std::istream& in)
     });
     in >> iacode;
     return Unit(iacode, levels);
+}
+
+
+std::string Unit::generateArmyCode()
+{
+	switch (std::rand() % 2)
+	{
+	case 0:	return "A";
+	case 1:	return "O";
+	}
+}
+
+std::string Unit::generatePointCode()
+{
+	switch (std::rand() % 2)
+	{
+	case 0:	return "B" + generateArmyCode();
+	case 1:	return "P" + generateUnitCode();
+	}
+}
+
+
+std::string Unit::generateUnitCode()
+{
+	std::stringstream ss;
+	switch (std::rand() % 3)
+	{
+	case 0:	return "U";
+	case 1:
+	{
+		if (std::rand() % 2 == 0)
+		{
+			ss << "L" << std::rand() % 7 << generateArmyCode();
+			return ss.str();
+		}
+		else
+			return "LD" + generateArmyCode() + generatePointCode();
+	}
+	case 2:
+	{
+		if (std::rand() % 2 == 0)
+		{
+			ss << "H" << std::rand() % 7 << generateArmyCode();
+			return ss.str();
+		}
+		else
+			return "HD" + generateArmyCode() + generatePointCode();
+	}
+	}
+}
+
+std::string Unit::generateFloatCode()
+{
+	std::stringstream ss;
+	switch (std::rand() % 5)
+	{
+	case 0:
+	{
+		ss << "C" << std::rand() % 7 << generateUnitCode();
+		return ss.str();
+	}
+	case 1: return "D" + generateUnitCode() + generatePointCode();
+	case 2:
+	{
+		if (std::rand() % 2 == 0)
+		{
+			ss << "M" << std::rand() % 7 << generateUnitCode();
+			return ss.str();
+		}
+		else
+			return "MD" + generateArmyCode() +generatePointCode();
+	}
+	case 3:
+	{
+		if (std::rand() % 2 == 0)
+		{
+			ss << "m" << std::rand() % 7 << generateUnitCode();
+			return ss.str();
+		}
+		else
+			return "mD" + generateArmyCode() + generatePointCode();
+	}
+	case 4:
+	{
+		if (std::rand() % 2 == 0)
+		{
+			ss << "a" << std::rand() % 7 << generateUnitCode();
+			return ss.str();
+		}
+		else
+			return "aD" + generateArmyCode() + generatePointCode();
+	}
+	}
+}
+
+std::string Unit::generateActionCode()
+{
+	switch (std::rand() % 4)
+	{
+	case 0: return "M" + generatePointCode();
+	case 1: return "E" + generatePointCode();
+	case 2: return "A" + generateUnitCode();
+	case 3: return "N";
+	}
+}
+
+std::string Unit::generateRandomIACode(int prof)
+{
+	if (prof == 0) 
+		return "!" + generateActionCode();
+	else
+	{
+		std::string code = "?";
+		if (std::rand() % 2 == 0)
+		{
+			std::string left = generateRandomIACode(prof - 1), right = generateRandomIACode(prof - 1),
+				leftvalue = generateFloatCode(), rightvalue = generateFloatCode();
+			if (std::rand() % 2 == 0)
+				return code + leftvalue + "<" + rightvalue + left + right;
+			else
+				return code + leftvalue + ">" + rightvalue + left + right;
+		}
+		else
+		{
+			return "!" + generateActionCode();
+		}
+	}
 }

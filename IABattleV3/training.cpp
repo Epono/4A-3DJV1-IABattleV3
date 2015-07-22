@@ -1,8 +1,4 @@
-#include "training.hpp"
-#include "battle.hpp"
-#include <memory>
-#include <vector>
-#include <iterator>
+#include "stdafx.h"
 
 
 //struct storing together an army and its score,
@@ -30,7 +26,7 @@ struct ArmyWrapper {
 // - armySize : number of units per army
 // - unitLevel : global level of each unit in each army
 // - champions : optionnal armies which have to be defeated
-std::shared_ptr<Army> train(int iterations, int threshold, int populationSize, int armySize, int unitLevel, std::vector<std::shared_ptr<Army> >& champions)
+std::unique_ptr<Army> train(int iterations, int threshold, int populationSize, int armySize, int unitLevel, std::vector<std::unique_ptr<Army> >& champions)
 {
     std::vector<ArmyWrapper> armies;
     int championsBonus = 1;
@@ -40,9 +36,11 @@ std::shared_ptr<Army> train(int iterations, int threshold, int populationSize, i
 
     //generation of the initial population
     armies.reserve(populationSize);
+	for (int i = 0; i < populationSize; ++i)
+		armies.push_back(ArmyWrapper(new Army(armySize, unitLevel)));/*
     std::generate_n(std::back_inserter(armies), populationSize, [armySize, unitLevel]() {
-        return new Army(armySize, unitLevel);
-    });
+        return ArmyWrapper(new Army(armySize, unitLevel));
+    });*/
 
     //start the training
     while(iterations--) {
@@ -114,6 +112,6 @@ std::shared_ptr<Army> train(int iterations, int threshold, int populationSize, i
 
 
     }
-    return std::shared_ptr<Army>(new Army(*(armies[0].army)));
+    return std::unique_ptr<Army>(new Army(*(armies[0].army)));
 }
 

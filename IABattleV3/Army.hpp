@@ -1,12 +1,7 @@
 #ifndef _ARMY_HPP_
 #define _ARMY_HPP_
+
 #include "Unit.hpp"
-#include <vector>
-#include <memory>
-#include <stdexcept>
-#include <algorithm>
-#include <iostream>
-#include <ostream>
 
 
 //Class representing an army, i.e. a set of units

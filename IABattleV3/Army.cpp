@@ -1,8 +1,4 @@
-#include <stdexcept>
-#include <limits>
-#include <memory>
-#include <iostream>
-#include "Army.hpp"
+#include "stdafx.h"
 
 
 void Army::copyUnits_(const std::vector<std::shared_ptr<Unit> >& units)
